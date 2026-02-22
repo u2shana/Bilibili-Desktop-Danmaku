@@ -23,7 +23,7 @@
 
 ```bash
 pip install PyQt5 bilibili-api-python
-python main.py
+python bili_desktop_danmaku.py
 ```
 
 ## ⚙️ 使用说明
