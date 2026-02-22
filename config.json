@@ -1,0 +1,11 @@
+{
+    "room_ids": [
+        33989,
+		42062
+    ],
+    "font_size": 18,
+    "line_limit": 7,
+    "speed_base": 2.7,
+    "outline_width": 1.2,
+    "opacity": 137
+}
