@@ -1,6 +1,6 @@
 # 📺 Bilibili桌面弹幕 (Bilibili Desktop Danmaku)
 
-一个基于 PyQt5 和 asyncio 的 Bilibili 直播弹幕桌面挂件。支持多直播间聚合监听、透明背景、弹幕防重叠、字体描边等功能。项目100%由gemini-3-pro-preview驱动。
+一个基于 PyQt5 和 asyncio 的 Bilibili 直播弹幕桌面挂件，便于在本地同时视听等场景。支持多直播间聚合监听、透明背景、弹幕防重叠、字体描边等功能。项目100%由gemini-3-pro-preview驱动。
 
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
