@@ -192,22 +192,23 @@ class DanmakuWindow(QWidget):
 
     def __init__(self):
         super().__init__()
-        
+
         self.config = load_config()
-        
+
         self.room_ids = self.config.get("room_ids", [])
         self.font_size = self.config.get("font_size", 28)
         self.line_limit = self.config.get("line_limit", 0)
         self.speed_base = self.config.get("speed_base", 2.5)
         self.outline_width = self.config.get("outline_width", 1.5)
         self.danmaku_opacity = self.config.get("opacity", 255)
-        
+
         self.danmakus = []
         self.is_locked = False
         self.drag_position = None
         self.font = QFont('Microsoft YaHei', self.font_size, QFont.Bold)
         self.lane_status = {}
-        
+        self.lock_button_rect = None
+
         # --- 新增：等待队列 ---
         # 当屏幕满时，弹幕暂存到这里，而不是强行重叠
         # maxlen=100 表示最多缓存100条，再多就丢弃旧的，防止内存爆炸
@@ -261,6 +262,7 @@ class DanmakuWindow(QWidget):
         self.tray_menu.addAction(self.quit_action)
         
         self.tray_icon.setContextMenu(self.tray_menu)
+        self.tray_icon.activated.connect(self.on_tray_activated)
         self.tray_icon.show()
         self.update_tray_menu()
 
@@ -315,6 +317,10 @@ class DanmakuWindow(QWidget):
         else:
             self.settings_dialog.activateWindow()
 
+    def on_tray_activated(self, reason):
+        if reason == QSystemTrayIcon.DoubleClick:
+            self.set_locked_mode(not self.is_locked)
+
     def update_tray_menu(self):
         self.lock_action.setVisible(not self.is_locked)
         self.unlock_action.setVisible(self.is_locked)
@@ -342,6 +348,9 @@ class DanmakuWindow(QWidget):
 
     def mousePressEvent(self, event):
         if not self.is_locked and event.button() == Qt.LeftButton:
+            if self.lock_button_rect and self.lock_button_rect.contains(event.pos()):
+                self.set_locked_mode(True)
+                return
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
 
@@ -349,8 +358,33 @@ class DanmakuWindow(QWidget):
         if not self.is_locked and event.buttons() == Qt.LeftButton and self.drag_position:
             self.move(event.globalPos() - self.drag_position)
             event.accept()
-    
+
     def mouseReleaseEvent(self, event):
+        if not self.is_locked and self.drag_position:
+            snap_threshold = 20
+            pos = self.pos()
+
+            for screen in QApplication.screens():
+                screen_geo = screen.geometry()
+                window_rect = self.geometry()
+
+                if screen_geo.intersects(window_rect):
+                    rel_x = pos.x() - screen_geo.x()
+                    rel_y = pos.y() - screen_geo.y()
+
+                    if rel_x < snap_threshold:
+                        pos.setX(screen_geo.x())
+                    elif rel_x + self.width() > screen_geo.width() - snap_threshold:
+                        pos.setX(screen_geo.x() + screen_geo.width() - self.width())
+
+                    if rel_y < snap_threshold:
+                        pos.setY(screen_geo.y())
+                    elif rel_y + self.height() > screen_geo.height() - snap_threshold:
+                        pos.setY(screen_geo.y() + screen_geo.height() - self.height())
+
+                    self.move(pos)
+                    break
+
         self.drag_position = None
 
     def resizeEvent(self, event):
@@ -508,20 +542,37 @@ class DanmakuWindow(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        
+
         if not self.is_locked:
             painter.fillRect(self.rect(), QColor(0, 0, 0, 150))
+
+            button_width = 140
+            button_height = 40
+            button_x = (self.width() - button_width) // 2
+            button_y = self.height() // 2 + 60
+            from PyQt5.QtCore import QRect
+            self.lock_button_rect = QRect(button_x, button_y, button_width, button_height)
+
+            painter.setBrush(QColor(70, 130, 180))
+            painter.setPen(Qt.NoPen)
+            painter.drawRoundedRect(self.lock_button_rect, 10, 10)
+
+            painter.setPen(QColor(255, 255, 255))
+            painter.setFont(QFont('Microsoft YaHei', 12, QFont.Bold))
+            painter.drawText(self.lock_button_rect, Qt.AlignCenter, "进入穿透模式")
+
             painter.setPen(QColor(255, 255, 255))
             painter.setFont(QFont('Microsoft YaHei', 14, QFont.Bold))
-            tips = "【编辑模式】\n\n1. 拖动窗口移动\n2. 拖动右下角调整大小\n3. 右键托盘图标【锁定】进入穿透模式"
-            painter.drawText(self.rect(), Qt.AlignCenter, tips)
+            tips = "【编辑模式】\n\n1. 拖动窗口移动\n2. 拖动右下角调整大小\n3. 双击托盘图标开关穿透模式"
+            text_rect = self.rect().adjusted(0, 0, 0, -80)
+            painter.drawText(text_rect, Qt.AlignCenter, tips)
 
         if self.danmaku_opacity < 255:
             painter.setOpacity(self.danmaku_opacity / 255.0)
 
         for d in self.danmakus:
             painter.drawPixmap(int(d['x']), int(d['y']), d['pixmap'])
-            
+
         painter.setOpacity(1.0)
 
 if __name__ == '__main__':
